@@ -1,0 +1,6 @@
+framework module Pods_PicCoach_PicCoachUITests {
+  umbrella header "Pods-PicCoach-PicCoachUITests-umbrella.h"
+
+  export *
+  module * { export * }
+}
