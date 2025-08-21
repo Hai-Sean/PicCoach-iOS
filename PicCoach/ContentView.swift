@@ -11,8 +11,6 @@ struct ContentView: View {
     @StateObject var camera = CameraModel()
     @State private var showPreview = false
     @StateObject var motion = MotionManager()
-    @State private var rollAngle: CGFloat = 0.0
-    @State private var capturedImage: UIImage? = nil
     
     var body: some View {
         GeometryReader { geo in
@@ -21,8 +19,9 @@ struct ContentView: View {
                 // --- Top reserved area (e.g. 15%) ---
                 Color.black
                     .opacity(0.8)
-                    .frame(height: geo.size.height * 0.15)
+                    .frame(height: camera.topBarHeight(for: camera.aspectRatio, in: geo))
                     .overlay(
+                        // TODO: - Add top quick action here
                         Text("Top UI") // placeholder
                             .foregroundColor(.white)
                     )
@@ -38,7 +37,66 @@ struct ContentView: View {
                     
                     // Balance line like iPhone camera
                     BalanceLine(rollAngle: motion.roll)
+                    
+                    // --- Left control bar ---
+                    HStack {
+                        Spacer()
+                            .frame(width: 20)
+                        
+                        VStack(spacing: 25) {
+                            // Flash button
+                            Button(action: {
+                                camera.toggleFlashMode()
+                            }) {
+                                Image(systemName: camera.flashModeIcon)
+                                    .foregroundColor(.white)
+                                    .font(.system(size: 22))
+                                    .frame(width: 40, height: 40)
+                                    .background(Color.black.opacity(0.6))
+                                    .clipShape(Circle())
+                            }
+
+                            // Timer button
+                            Button(action: {
+                                camera.cycleTimer()
+                            }) {
+                                Text(camera.timerText)
+                                    .foregroundColor(.white)
+                                    .font(.system(size: 16, weight: .bold))
+                                    .frame(width: 40, height: 40)
+                                    .background(Color.black.opacity(0.6))
+                                    .clipShape(Circle())
+                            }
+
+                            // Aspect ratio button
+                            Button(action: {
+                                camera.cycleAspectRatio()
+                            }) {
+                                Text(camera.aspectText)
+                                    .foregroundColor(.white)
+                                    .font(.system(size: 14, weight: .bold))
+                                    .frame(width: 40, height: 40)
+                                    .background(Color.black.opacity(0.6))
+                                    .clipShape(Circle())
+                            }
+
+                            // Zoom button
+                            if !camera.isUsingFrontCamera {
+                                Button(action: { camera.cycleZoom() }) {
+                                    Text(camera.zoomText)
+                                        .foregroundColor(.white)
+                                        .font(.system(size: 14, weight: .bold))
+                                        .frame(width: 40, height: 40)
+                                        .background(Color.black.opacity(0.6))
+                                        .clipShape(Circle())
+                                }
+                            }
+                        }
+                        
+                        Spacer()
+                    }
                 }
+                .frame(height: camera.cameraHeight(for: camera.aspectRatio, in: geo))
                 
                 // --- Bottom UI area (15%) ---
                 VStack {
@@ -105,7 +163,6 @@ struct ContentView: View {
                     
                     Spacer()
                 }
-                .frame(height: geo.size.height * 0.20)
                 .background(Color.black.opacity(0.8))
             }
             .edgesIgnoringSafeArea(.all)
