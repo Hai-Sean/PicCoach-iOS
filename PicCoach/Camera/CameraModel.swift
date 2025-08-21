@@ -53,4 +53,23 @@ class CameraModel: NSObject, ObservableObject, AVCapturePhotoCaptureDelegate {
             }
         }
     }
+    
+    func switchCamera() {
+        if let currentInput = session.inputs.first as? AVCaptureDeviceInput {
+            session.beginConfiguration()
+            session.removeInput(currentInput)
+            
+            let newPosition: AVCaptureDevice.Position =
+                currentInput.device.position == .back ? .front : .back
+            
+            if let newDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: newPosition),
+               let newInput = try? AVCaptureDeviceInput(device: newDevice),
+               session.canAddInput(newInput) {
+                session.addInput(newInput)
+            }
+            
+            session.commitConfiguration()
+        }
+    }
+
 }
