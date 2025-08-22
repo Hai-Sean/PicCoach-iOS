@@ -50,7 +50,7 @@ struct CameraView: View {
                             }) {
                                 Image(systemName: camera.flashModeIcon)
                                     .foregroundColor(.white)
-                                    .font(.system(size: 22))
+                                    .font(.system(size: 20))
                                     .frame(width: 40, height: 40)
                                     .background(Color.black.opacity(0.6))
                                     .clipShape(Circle())
@@ -60,12 +60,23 @@ struct CameraView: View {
                             Button(action: {
                                 camera.cycleTimer()
                             }) {
-                                Text(camera.timerText)
-                                    .foregroundColor(.white)
-                                    .font(.system(size: 16, weight: .bold))
-                                    .frame(width: 40, height: 40)
-                                    .background(Color.black.opacity(0.6))
-                                    .clipShape(Circle())
+                                if camera.timerSeconds == 0 && camera.countdown == 0 {
+                                    Image("timer")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 25, height: 25)
+                                        .foregroundColor(.white)
+                                        .frame(width: 40, height: 40)
+                                        .background(Color.black.opacity(0.6))
+                                        .clipShape(Circle())
+                                } else {
+                                    Text(camera.timerText)
+                                        .foregroundColor(.white)
+                                        .font(.system(size: 16, weight: .bold))
+                                        .frame(width: 40, height: 40)
+                                        .background(Color.black.opacity(0.6))
+                                        .clipShape(Circle())
+                                }
                             }
 
                             // Aspect ratio button
@@ -100,6 +111,8 @@ struct CameraView: View {
                 
                 // --- Bottom UI area (15%) ---
                 VStack {
+                    Spacer()
+                    
                     HStack {
                         // Image preview thumbnail (left)
                         if let image = camera.lastPhoto {
@@ -159,7 +172,6 @@ struct CameraView: View {
                         }
                         .padding(.trailing, 20)
                     }
-                    .frame(height: 90)
                     
                     Spacer()
                 }
