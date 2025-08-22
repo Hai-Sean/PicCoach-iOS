@@ -63,7 +63,7 @@ struct PhotoPreviewView: View {
                 }
             }
             .navigationDestination(isPresented: $isEditing) {
-                PhotoEditorView(photo: image)
+                PhotoEditorView(photo: image.fixedOrientation())
             }
         }
     }
