@@ -12,6 +12,14 @@ struct CameraView: View {
     @State private var showPreview = false
     @StateObject var motion = MotionManager()
     
+    // Outline Overlay state
+    @State private var outlineOverlayEnabled = false
+    @State private var outlineOverlayOpacity: Double = 0.5
+    @State private var outlineOverlayImage: UIImage?
+    @State private var outlineOverlayScale: CGFloat = 1.0
+    @State private var outlineOverlayOffset = CGSize.zero
+    @State private var outlineOverlayRotation: Double = 0.0
+    
     var body: some View {
         GeometryReader { geo in
             VStack(spacing: 0) {
@@ -37,6 +45,16 @@ struct CameraView: View {
                     
                     // Balance line like iPhone camera
                     BalanceLine(rollAngle: motion.roll)
+                    
+                    // Outline Overlay
+                    OutlineOverlay(
+                        isEnabled: $outlineOverlayEnabled,
+                        opacity: $outlineOverlayOpacity,
+                        selectedImage: $outlineOverlayImage,
+                        scale: $outlineOverlayScale,
+                        offset: $outlineOverlayOffset,
+                        rotation: $outlineOverlayRotation
+                    )
                     
                     // --- Left control bar ---
                     HStack {
@@ -102,15 +120,47 @@ struct CameraView: View {
                                         .clipShape(Circle())
                                 }
                             }
+                            
+                            // Outline Overlay quick toggle
+                            Button(action: {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    outlineOverlayEnabled.toggle()
+                                }
+                            }) {
+                                Image(systemName: outlineOverlayEnabled ? "square.on.square.fill" : "square.on.square")
+                                    .foregroundColor(outlineOverlayEnabled ? .blue : .white)
+                                    .font(.system(size: 18))
+                                    .frame(width: 40, height: 40)
+                                    .background(outlineOverlayEnabled ? Color.blue.opacity(0.3) : Color.black.opacity(0.6))
+                                    .clipShape(Circle())
+                                    .overlay(
+                                        Circle()
+                                            .stroke(outlineOverlayEnabled ? Color.blue : Color.clear, lineWidth: 2)
+                                    )
+                            }
                         }
                         
                         Spacer()
                     }
                 }
                 .frame(height: camera.cameraHeight(for: camera.aspectRatio, in: geo))
+
+
                 
                 // --- Bottom UI area (15%) ---
                 VStack {
+                    // Outline Overlay Controls
+                    if outlineOverlayEnabled {
+                        OutlineOverlayControls(
+                            isEnabled: $outlineOverlayEnabled,
+                            opacity: $outlineOverlayOpacity,
+                            selectedImage: $outlineOverlayImage,
+                            scale: $outlineOverlayScale,
+                            offset: $outlineOverlayOffset,
+                            rotation: $outlineOverlayRotation
+                        )
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                    }
                     Spacer()
                     
                     HStack {
