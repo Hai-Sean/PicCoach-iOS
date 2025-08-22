@@ -6,11 +6,14 @@
 //
 
 import SwiftUI
+import Photos
 
 struct CameraView: View {
+    @Environment(\.presentationMode) var presentationMode
     @StateObject var camera = CameraModel()
     @State private var showPreview = false
     @StateObject var motion = MotionManager()
+    @State private var lastLibraryPhoto: UIImage?
     
     // Outline Overlay state
     @State private var outlineOverlayEnabled = false
@@ -145,8 +148,6 @@ struct CameraView: View {
                 }
                 .frame(height: camera.cameraHeight(for: camera.aspectRatio, in: geo))
 
-
-                
                 // --- Bottom UI area (15%) ---
                 VStack {
                     // Outline Overlay Controls
@@ -165,8 +166,9 @@ struct CameraView: View {
                     
                     HStack {
                         // Image preview thumbnail (left)
-                        if let image = camera.lastPhoto {
+                        if let image = camera.lastPhoto ?? lastLibraryPhoto {
                             Button {
+                                camera.lastPhoto = image
                                 showPreview = true
                             } label: {
                                 Image(uiImage: image)
@@ -229,9 +231,52 @@ struct CameraView: View {
             }
             .edgesIgnoringSafeArea(.all)
         }
+        .onAppear {
+            fetchLastLibraryPhoto()
+        }
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: {
+                    presentationMode.wrappedValue.dismiss()   // <-- pops NavigationLink
+                }) {
+                    Image(systemName: "chevron.left")
+                        .foregroundColor(.white)
+                        .font(.system(size: 20, weight: .medium))
+                }
+            }
+        }
         .fullScreenCover(isPresented: $showPreview) {
             if let image = camera.lastPhoto {
                 PhotoPreviewView(image: image)
+            }
+        }
+    }
+    
+    func fetchLastLibraryPhoto() {
+        let fetchOptions = PHFetchOptions()
+        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        fetchOptions.fetchLimit = 1
+        
+        let assets = PHAsset.fetchAssets(with: .image, options: fetchOptions)
+        guard let asset = assets.firstObject else { return }
+        
+        let manager = PHImageManager.default()
+        let options = PHImageRequestOptions()
+        options.deliveryMode = .highQualityFormat
+        options.isSynchronous = false
+        options.resizeMode = .exact
+        
+        let targetSize = CGSize(width: 200, height: 200)
+        
+        manager.requestImage(for: asset,
+                             targetSize: targetSize,
+                             contentMode: .aspectFill,
+                             options: options) { image, _ in
+            if let image = image {
+                DispatchQueue.main.async {
+                    self.lastLibraryPhoto = image
+                }
             }
         }
     }
