@@ -36,7 +36,7 @@ struct WelcomeView: View {
                     Spacer()
                     
                     // Center image
-                    Image("welcome_img")
+                    Image("Welcome_img")
                         .resizable()
                         .scaledToFit()
                     
