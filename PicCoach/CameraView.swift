@@ -173,7 +173,7 @@ struct CameraView: View {
             }
         }
         .fullScreenCover(isPresented: $showPersonSelector) {
-            PersonSelectorView(outlineOverlayImage: $outlineOverlayImage)
+            PersonSelectorView(outlineOverlayImage: $outlineOverlayImage, cameraMode: selectedCameraMode)
         }
      
     }
