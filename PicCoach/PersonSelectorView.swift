@@ -9,8 +9,11 @@ import SwiftUI
 
 struct PersonSelectorView: View {
     @Environment(\.presentationMode) var presentationMode
+    @Binding var outlineOverlayImage: UIImage?
     @State private var selectedPersonCount = "1 Person"
     @State private var showDropdown = false
+    @State private var showingImagePicker = false
+    @State private var uploadedImages: [UIImage] = []
     
     let personOptions = ["1 Person"]
     
@@ -113,12 +116,14 @@ struct PersonSelectorView: View {
                 .zIndex(1)
                 
                 // Photo Grid
-                VStack(spacing: 16) {
-                    // First row
-                    HStack(spacing: 16) {
+                ScrollView {
+                    LazyVGrid(columns: [
+                        GridItem(.flexible()),
+                        GridItem(.flexible())
+                    ], spacing: 16) {
                         // Upload button
                         Button(action: {
-                            // Handle upload action
+                            showingImagePicker = true
                         }) {
                             VStack(spacing: 8) {
                                 ZStack {
@@ -146,9 +151,22 @@ struct PersonSelectorView: View {
                             )
                         }
                         
-                        PhotoOutlineItem(image: "sample_pose")
+                        // Default sample pose
+                        PhotoOutlineItem(imageName: "sample_pose") {
+                            if let sampleImage = UIImage(named: "sample_pose") {
+                                outlineOverlayImage = sampleImage
+                                presentationMode.wrappedValue.dismiss()
+                            }
+                        }
+                        
+                        // Uploaded images
+                        ForEach(Array(uploadedImages.enumerated()), id: \.offset) { index, image in
+                            PhotoOutlineItem(uiImage: image) {
+                                outlineOverlayImage = image
+                                presentationMode.wrappedValue.dismiss()
+                            }
+                        }
                     }
-                
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 10)
@@ -158,27 +176,66 @@ struct PersonSelectorView: View {
         }
         .background(Color.black.opacity(0.8))
         .navigationBarHidden(true)
+        .sheet(isPresented: $showingImagePicker) {
+            ImagePicker(selectedImage: Binding(
+                get: { nil },
+                set: { newImage in
+                    if let image = newImage {
+                        uploadedImages.append(image)
+                    }
+                }
+            ))
+        }
     }
 }
 
 struct PhotoOutlineItem: View {
-    let image: String
+    let imageName: String?
+    let uiImage: UIImage?
+    let onTap: () -> Void
+    
+    init(imageName: String, onTap: @escaping () -> Void) {
+        self.imageName = imageName
+        self.uiImage = nil
+        self.onTap = onTap
+    }
+    
+    init(uiImage: UIImage, onTap: @escaping () -> Void) {
+        self.imageName = nil
+        self.uiImage = uiImage
+        self.onTap = onTap
+    }
     
     var body: some View {
-        Image(image)
-            .resizable()
-            .aspectRatio(contentMode: .fit)
+        Button(action: onTap) {
+            Group {
+                if let imageName = imageName {
+                    Image(imageName)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                } else if let uiImage = uiImage {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                } else {
+                    Color.gray
+                }
+            }
             .frame(maxWidth: .infinity)
-            .frame(height: 233)
+            .frame(height: 209)
+            .padding(12)
+            .background(Color(red: 28/255, green: 28/255, blue: 30/255))
             .clipped()
             .cornerRadius(8)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(Color(red: 69/255, green: 69/255, blue: 74/255), lineWidth: 1)
             )
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
 #Preview {
-    PersonSelectorView()
+    PersonSelectorView(outlineOverlayImage: .constant(nil))
 }

@@ -78,27 +78,9 @@ struct OutlineOverlayControls: View {
     var body: some View {
         VStack(spacing: 12) {
             
-            if isEnabled {
+            if isEnabled && selectedImage != nil {
                 // Image selection
-                HStack {
-                    Button(action: {
-                        showingImagePicker = true
-                    }) {
-                        HStack {
-                            Image(systemName: "photo")
-                                .foregroundColor(.white)
-                                .font(.system(size: 14))
-                            
-                            Text(selectedImage != nil ? "Change Image" : "Select Image")
-                                .foregroundColor(.white)
-                                .font(.system(size: 12))
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.blue.opacity(0.6))
-                        .cornerRadius(8)
-                    }
-                    
+                HStack {                    
                     Spacer()
                     
                     // Remove image button

@@ -32,6 +32,26 @@ struct CameraBottomUI: View {
         VStack {
             Spacer()
 
+            if selectedCameraMode != .classic {
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        camera.switchCamera()
+                    }) {
+                        Image(systemName: "arrow.triangle.2.circlepath.camera")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 30, height: 30)
+                            .foregroundColor(.white)
+                            .padding(15)
+                            .background(Color.black.opacity(0.6))
+                            .clipShape(Circle())  
+                    }
+                    .padding(.trailing, 20)
+                }
+            }
+
+
             VStack {
                 // Camera Modes - Scrollable
                 ScrollView(.horizontal, showsIndicators: false) {
