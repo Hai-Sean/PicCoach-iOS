@@ -8,13 +8,14 @@
 import SwiftUI
 
 struct ProcessedImage: Identifiable {
-    let id = UUID()
+    let id: UUID
     let originalImage: UIImage
     let segmentedImage: UIImage?
     let isProcessing: Bool
     let error: String?
     
-    init(originalImage: UIImage, segmentedImage: UIImage? = nil, isProcessing: Bool = true, error: String? = nil) {
+    init(originalImage: UIImage, segmentedImage: UIImage? = nil, isProcessing: Bool = true, error: String? = nil, id: UUID = UUID()) {
+        self.id = id
         self.originalImage = originalImage
         self.segmentedImage = segmentedImage
         self.isProcessing = isProcessing
@@ -30,6 +31,9 @@ struct PersonSelectorView: View {
     @State private var showDropdown = false
     @State private var showingImagePicker = false
     @State private var processedImages: [ProcessedImage] = []
+    @StateObject private var storage = ProcessedImageStorage.shared
+    @State private var showStorageInfo = false
+    @State private var showDeleteAllAlert = false
     
     let personOptions = ["1 Person"]
     
@@ -61,6 +65,27 @@ struct PersonSelectorView: View {
                     }
                     
                     Spacer()
+                    
+                    // Delete All Button (only show if there are images)
+                    if !processedImages.isEmpty {
+                        Button(action: {
+                            showDeleteAllAlert = true
+                        }) {
+                            Image(systemName: "trash")
+                                .foregroundColor(.red)
+                                .font(.system(size: 18))
+                        }
+                        .padding(.trailing, 8)
+                    }
+                    
+                    // Storage Info Button
+                    Button(action: {
+                        showStorageInfo = true
+                    }) {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.white)
+                            .font(.system(size: 18))
+                    }
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 10)
@@ -188,14 +213,27 @@ struct PersonSelectorView: View {
                         
                         // Uploaded and processed images
                         ForEach(processedImages) { processedImage in
-                            ProcessedImageItem(processedImage: processedImage, onTap: {
-                                if let segmentedImage = processedImage.segmentedImage {
-                                    outlineOverlayImage = segmentedImage
-                                    presentationMode.wrappedValue.dismiss()
+                            ProcessedImageItem(
+                                processedImage: processedImage, 
+                                onTap: {
+                                    if let segmentedImage = processedImage.segmentedImage {
+                                        outlineOverlayImage = segmentedImage
+                                        presentationMode.wrappedValue.dismiss()
+                                    }
+                                }, 
+                                onRetry: {
+                                    retryProcessing(for: processedImage)
+                                },
+                                onDelete: {
+                                    deleteProcessedImage(processedImage)
                                 }
-                            }, onRetry: {
-                                retryImageProcessing(processedImage)
-                            })
+                            )
+                        }
+                        .onDelete { indexSet in
+                            for index in indexSet {
+                                let imageToDelete = processedImages[index]
+                                deleteProcessedImage(imageToDelete)
+                            }
                         }
                     }
                 }
@@ -207,6 +245,13 @@ struct PersonSelectorView: View {
         }
         .background(Color.black.opacity(0.8))
         .navigationBarHidden(true)
+        .onAppear {
+            loadStoredImages()
+            setupBackgroundSaving()
+        }
+        .onDisappear {
+            saveCurrentImages()
+        }
         .sheet(isPresented: $showingImagePicker) {
             ImagePicker(selectedImage: Binding(
                 get: { nil },
@@ -216,6 +261,23 @@ struct PersonSelectorView: View {
                     }
                 }
             ))
+        }
+        .alert("Storage Information", isPresented: $showStorageInfo) {
+            Button("Clear All Cache", role: .destructive) {
+                clearStorageCache()
+            }
+            Button("OK", role: .cancel) { }
+        } message: {
+            let info = storage.getStorageInfo()
+            Text("Stored Images: \(info.count)\nProcessing: \(info.processingCount)\nStorage Size: \(String(format: "%.1f", info.sizeInMB)) MB")
+        }
+        .alert("Delete All Images", isPresented: $showDeleteAllAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete All", role: .destructive) {
+                deleteAllImages()
+            }
+        } message: {
+            Text("Are you sure you want to delete all \(processedImages.count) images? This action cannot be undone.")
         }
     }
     
@@ -252,78 +314,235 @@ struct PersonSelectorView: View {
                 // Update the processed image on main thread
                 await MainActor.run {
                     if let index = processedImages.firstIndex(where: { $0.id == processedImage.id }) {
-                        processedImages[index] = ProcessedImage(
+                        let updatedImage = ProcessedImage(
                             originalImage: image,
                             segmentedImage: segmentedImage,
                             isProcessing: false,
-                            error: nil
+                            error: nil,
+                            id: processedImage.id
                         )
+                        processedImages[index] = updatedImage
+                        
+                        // Save to storage
+                        storage.saveProcessedImage(updatedImage, cameraMode: cameraMode)
+                        print("💾 Image saved to storage")
                     }
                 }
             } catch {
                 // Handle segmentation error
                 await MainActor.run {
                     if let index = processedImages.firstIndex(where: { $0.id == processedImage.id }) {
-                        processedImages[index] = ProcessedImage(
+                        let updatedImage = ProcessedImage(
                             originalImage: image,
                             segmentedImage: nil,
                             isProcessing: false,
-                            error: error.localizedDescription
+                            error: error.localizedDescription,
+                            id: processedImage.id
                         )
+                        processedImages[index] = updatedImage
+                        
+                        // Save error state to storage
+                        storage.saveProcessedImage(updatedImage, cameraMode: cameraMode)
+                        print("💾 Error state saved to storage")
                     }
                 }
             }
         }
     }
     
-    private func retryImageProcessing(_ failedImage: ProcessedImage) {
+    // MARK: - Storage Methods
+    private func loadStoredImages() {
+        print("📂 Loading stored images for camera mode: \(cameraMode.rawValue)")
+        let storedImages = storage.loadProcessedImages(for: cameraMode)
+        
+        DispatchQueue.main.async {
+            // Replace current images with all stored images (including processing ones)
+            processedImages = storedImages
+            print("📋 Loaded \(storedImages.count) stored images")
+            
+            // Resume processing for any incomplete images
+            let processingImages = storedImages.filter { $0.isProcessing }
+            if !processingImages.isEmpty {
+                print("� Found \(processingImages.count) images still processing. Resuming...")
+                
+                for processingImage in processingImages {
+                    resumeProcessing(for: processingImage)
+                }
+            }
+        }
+    }
+    
+    private func saveCurrentImages() {
+        print("💾 Saving current images to storage...")
+        
+        // Save ALL images including those that are still processing
+        storage.saveAllProcessingImages(processedImages, cameraMode: cameraMode)
+        
+        print("✅ All images saved (including processing ones)")
+    }
+    
+    private func clearStorageCache() {
+        print("🗑️ Clearing storage cache...")
+        storage.clearAllProcessedImages()
+        
+        // Remove non-processing images from current view
+        processedImages = processedImages.filter { $0.isProcessing }
+        
+        print("✅ Storage cache cleared")
+    }
+    
+    private func deleteProcessedImage(_ processedImage: ProcessedImage) {
+        print("🗑️ Deleting processed image...")
+        
+        // Remove from storage
+        storage.deleteProcessedImage(processedImage, cameraMode: cameraMode)
+        
+        // Remove from current view
+        if let index = processedImages.firstIndex(where: { $0.id == processedImage.id }) {
+            processedImages.remove(at: index)
+        }
+        
+        print("✅ Image deleted successfully")
+    }
+    
+    private func deleteAllImages() {
+        print("🗑️ Deleting all images...")
+        
+        // Delete all images from storage
+        for image in processedImages {
+            storage.deleteProcessedImage(image, cameraMode: cameraMode)
+        }
+        
+        // Clear current view
+        processedImages.removeAll()
+        
+        print("✅ All images deleted successfully")
+    }
+    
+    private func resumeProcessing(for processedImage: ProcessedImage) {
+        print("🔄 Resuming processing for saved image...")
+        
+        // Process the image asynchronously
+        Task {
+            print("⏳ Starting resumed async processing...")
+            
+            do {
+                print("🌐 Calling APIService with mode: \(cameraMode.rawValue)")
+                let segmentedImage = try await APIService.shared.uploadFileAsImage(
+                    endpoint: segmentEndpoint,
+                    image: processedImage.originalImage
+                )
+                
+                // Update the processed image on main thread
+                await MainActor.run {
+                    if let index = processedImages.firstIndex(where: { $0.id == processedImage.id }) {
+                        let updatedImage = ProcessedImage(
+                            originalImage: processedImage.originalImage,
+                            segmentedImage: segmentedImage,
+                            isProcessing: false,
+                            error: nil,
+                            id: processedImage.id
+                        )
+                        processedImages[index] = updatedImage
+                        
+                        // Save to storage
+                        storage.saveProcessedImage(updatedImage, cameraMode: cameraMode)
+                        print("💾 Resumed processing result saved to storage")
+                    }
+                }
+            } catch {
+                // Handle segmentation error
+                await MainActor.run {
+                    if let index = processedImages.firstIndex(where: { $0.id == processedImage.id }) {
+                        let updatedImage = ProcessedImage(
+                            originalImage: processedImage.originalImage,
+                            segmentedImage: nil,
+                            isProcessing: false,
+                            error: error.localizedDescription,
+                            id: processedImage.id
+                        )
+                        processedImages[index] = updatedImage
+                        
+                        // Save error state to storage
+                        storage.saveProcessedImage(updatedImage, cameraMode: cameraMode)
+                        print("💾 Resumed processing error saved to storage")
+                    }
+                }
+            }
+        }
+    }
+    
+    private func retryProcessing(for processedImage: ProcessedImage) {
+        print("🔄 Retrying processing for image...")
+        
         // Update the image to processing state
-        if let index = processedImages.firstIndex(where: { $0.id == failedImage.id }) {
+        if let index = processedImages.firstIndex(where: { $0.id == processedImage.id }) {
             processedImages[index] = ProcessedImage(
-                originalImage: failedImage.originalImage,
-                segmentedImage: nil,
+                originalImage: processedImage.originalImage,
                 isProcessing: true,
-                error: nil
+                id: processedImage.id
             )
             
-            // Process the image again
-            let imageToProcess = failedImage.originalImage
-            let imageId = failedImage.id
-            
+            // Process the image asynchronously
             Task {
+                print("⏳ Starting retry async processing...")
+                
                 do {
-                    print("🔄 Retrying with mode: \(cameraMode.rawValue)")
-                    print("📡 Retry endpoint: \(segmentEndpoint)")
+                    print("🌐 Calling APIService with mode: \(cameraMode.rawValue)")
                     let segmentedImage = try await APIService.shared.uploadFileAsImage(
                         endpoint: segmentEndpoint,
-                        image: imageToProcess
+                        image: processedImage.originalImage
                     )
                     
                     // Update the processed image on main thread
                     await MainActor.run {
-                        if let index = processedImages.firstIndex(where: { $0.id == imageId }) {
-                            processedImages[index] = ProcessedImage(
-                                originalImage: imageToProcess,
+                        if let index = processedImages.firstIndex(where: { $0.id == processedImage.id }) {
+                            let updatedImage = ProcessedImage(
+                                originalImage: processedImage.originalImage,
                                 segmentedImage: segmentedImage,
                                 isProcessing: false,
-                                error: nil
+                                error: nil,
+                                id: processedImage.id
                             )
+                            processedImages[index] = updatedImage
+                            
+                            // Save to storage
+                            storage.saveProcessedImage(updatedImage, cameraMode: cameraMode)
+                            print("💾 Retry result saved to storage")
                         }
                     }
                 } catch {
                     // Handle segmentation error
                     await MainActor.run {
-                        if let index = processedImages.firstIndex(where: { $0.id == imageId }) {
-                            processedImages[index] = ProcessedImage(
-                                originalImage: imageToProcess,
+                        if let index = processedImages.firstIndex(where: { $0.id == processedImage.id }) {
+                            let updatedImage = ProcessedImage(
+                                originalImage: processedImage.originalImage,
                                 segmentedImage: nil,
                                 isProcessing: false,
-                                error: error.localizedDescription
+                                error: error.localizedDescription,
+                                id: processedImage.id
                             )
+                            processedImages[index] = updatedImage
+                            
+                            // Save error state to storage
+                            storage.saveProcessedImage(updatedImage, cameraMode: cameraMode)
+                            print("💾 Retry error saved to storage")
                         }
                     }
                 }
             }
+        }
+    }
+    
+    private func setupBackgroundSaving() {
+        // Save when app goes to background
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            print("📱 App entering background, saving all images...")
+            saveCurrentImages()
         }
     }
 }
@@ -332,6 +551,8 @@ struct ProcessedImageItem: View {
     let processedImage: ProcessedImage
     let onTap: () -> Void
     let onRetry: () -> Void
+    let onDelete: () -> Void
+    @State private var showDeleteAlert = false
     
     var body: some View {
         Button(action: {
@@ -431,16 +652,16 @@ struct ProcessedImageItem: View {
                             .clipped()
                         
                         // Success indicator
-                        ZStack {
-                            Circle()
-                                .fill(Color(red: 228/255, green: 255/255, blue: 90/255))
-                                .frame(width: 24, height: 24)
+                        // ZStack {
+                        //     Circle()
+                        //         .fill(Color(red: 228/255, green: 255/255, blue: 90/255))
+                        //         .frame(width: 24, height: 24)
                             
-                            Image(systemName: "checkmark")
-                                .foregroundColor(.black)
-                                .font(.system(size: 12, weight: .bold))
-                        }
-                        .offset(x: -8, y: 8)
+                        //     Image(systemName: "checkmark")
+                        //         .foregroundColor(.black)
+                        //         .font(.system(size: 12, weight: .bold))
+                        // }
+                        // .offset(x: -8, y: 8)
                     }
                 } else {
                     // Fallback to original image
@@ -458,6 +679,22 @@ struct ProcessedImageItem: View {
         }
         .buttonStyle(PlainButtonStyle())
         .disabled(processedImage.isProcessing || processedImage.segmentedImage == nil)
+        .contextMenu {
+            Button(action: {
+                showDeleteAlert = true
+            }) {
+                Label("Delete", systemImage: "trash")
+            }
+            .foregroundColor(.red)
+        }
+        .alert("Delete Image", isPresented: $showDeleteAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                onDelete()
+            }
+        } message: {
+            Text("Are you sure you want to delete this image?")
+        }
     }
 }
 
