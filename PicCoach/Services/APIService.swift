@@ -56,11 +56,11 @@ class APIService {
     }
     
     // MARK: - Multipart Request (file upload)
-    func uploadFile(
+    func uploadFileAsImage(
         endpoint: APIEndpoint,
         image: UIImage,
         fieldName: String = "file"
-    ) async throws -> String {
+    ) async throws -> UIImage {
         guard let url = URL(string: baseURL + endpoint.path) else {
             throw URLError(.badURL)
         }
@@ -80,7 +80,6 @@ class APIService {
         }
         
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
-        
         request.httpBody = body
         
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -90,7 +89,11 @@ class APIService {
             throw URLError(.badServerResponse)
         }
         
-        return String(data: data, encoding: .utf8) ?? ""
+        guard let outputImage = UIImage(data: data) else {
+            throw URLError(.cannotDecodeContentData)
+        }
+        
+        return outputImage
     }
 }
 
