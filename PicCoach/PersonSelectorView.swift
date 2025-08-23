@@ -313,6 +313,9 @@ struct PersonSelectorView: View {
                     endpoint: segmentEndpoint,
                     image: image
                 )
+                
+                ImageTaskManager.shared.startTechnicalityTask(for: image)
+                ImageTaskManager.shared.startEnhanceTask(for: image)
 
                 print("✅ Segmentation successful. Got segmented image:")
                 print("- Image size: \(segmentedImage.size)")

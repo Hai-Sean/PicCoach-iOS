@@ -28,7 +28,24 @@ struct CameraView: View {
     
     // Navigation state
     @State private var showPersonSelector = false
-
+    @StateObject private var taskManager = ImageTaskManager.shared
+    @State private var showTechnicalityPreview = false
+    @State private var technicalityPreviewAdjustments: (brightness: Double, contrast: Double, saturation: Double, exposure: Double)?
+    
+    @State private var showEnhancedPreview = false
+    @State private var enhancedPreviewImage: UIImage?
+    
+    private var hasTechnicalityResult: Bool {
+        !taskManager.technicalityResults.isEmpty
+    }
+    
+    private var hasEnhancedImage: Bool {
+        !(taskManager.enhancedImages.first?.value == nil)
+    }
+    
+    private var enhanceImage: UIImage? {
+        taskManager.enhancedImages.first?.value
+    }
     
     var body: some View {
         GeometryReader { geo in
@@ -63,7 +80,7 @@ struct CameraView: View {
                             Spacer()
                                 .frame(width: 20)
                             
-                            VStack(spacing: 25) {
+                            VStack(spacing: 16) {
                                 // Flash button
                                 Button(action: {
                                     camera.toggleFlashMode()
@@ -122,8 +139,40 @@ struct CameraView: View {
                                             .clipShape(Circle())
                                     }
                                 }
+                                
+                                if hasTechnicalityResult {
+                                    Button(action: {
+                                        // Use the latest technicality result
+                                        previewTSPhoto()
+                                    }) {
+                                        Text("TS")
+                                            .font(.system(size: 14, weight: .bold))
+                                            .frame(width: 40, height: 40)
+                                            .background(Color.yellow.opacity(0.8))
+                                            .foregroundColor(.black)
+                                            .clipShape(Circle())
+                                    }
+                                    .padding()
+                                    .transition(.move(edge: .top).combined(with: .opacity))
+                                    .animation(.easeInOut, value: hasTechnicalityResult)
+                                }
+                                
+                                if hasEnhancedImage, let firstEnhanced = enhanceImage {
+                                    Button(action: {
+                                        enhancedPreviewImage = firstEnhanced
+                                        showEnhancedPreview = true
+                                    }) {
+                                        Text("ENH")
+                                            .font(.system(size: 14, weight: .bold))
+                                            .frame(width: 40, height: 40)
+                                            .background(Color.green.opacity(0.8))
+                                            .foregroundColor(.black)
+                                            .clipShape(Circle())
+                                    }
+                                    .padding()
+                                }
                             }
-                            
+
                             Spacer()
                         }
                     }
@@ -175,7 +224,42 @@ struct CameraView: View {
         .fullScreenCover(isPresented: $showPersonSelector) {
             PersonSelectorView(outlineOverlayImage: $outlineOverlayImage, cameraMode: selectedCameraMode)
         }
-     
+        .fullScreenCover(isPresented: $showTechnicalityPreview) {
+            if let adjustments = technicalityPreviewAdjustments,
+               let lastPhoto = ImageTaskManager.shared.lastUploadedPhoto ?? lastLibraryPhoto {
+                TechnicalityPreviewView(
+                    originalImage: lastPhoto,
+                    adjustments: adjustments
+                )
+            } else {
+                // fallback if adjustments not ready
+                Text("Loading...")
+                    .font(.title)
+                    .foregroundColor(.white)
+                    .background(Color.black.edgesIgnoringSafeArea(.all))
+            }
+        }
+        .fullScreenCover(isPresented: $showEnhancedPreview) {
+            if let image = enhancedPreviewImage {
+                EnhancedPreviewView(image: image)
+            }
+        }
+    }
+    
+    func previewTSPhoto() {
+        if let result = taskManager.technicalityResults.values.first {
+            let adjustments = (
+                brightness: Double(result.brightness),
+                contrast: Double(result.contrast),
+                saturation: Double(result.saturation),
+                exposure: Double(result.exposure)
+            )
+            
+            DispatchQueue.main.async {
+                self.technicalityPreviewAdjustments = adjustments
+                self.showTechnicalityPreview = true
+            }
+        }
     }
     
     func fetchLastLibraryPhoto() {
