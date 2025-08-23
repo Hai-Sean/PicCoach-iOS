@@ -315,13 +315,9 @@ struct PersonSelectorView: View {
                 )
 
                 print("✅ Segmentation successful. Got segmented image:")
-                if let segmentedImage = segmentedImage {
-                    print("- Image size: \(segmentedImage.size)")
-                    print("- Scale: \(segmentedImage.scale)")
-                    print("- Orientation: \(segmentedImage.imageOrientation.rawValue)")
-                } else {
-                    print("- Warning: segmentedImage is nil despite successful API call")
-                }
+                print("- Image size: \(segmentedImage.size)")
+                print("- Scale: \(segmentedImage.scale)")
+                print("- Orientation: \(segmentedImage.imageOrientation.rawValue)")
                 
                 // Update the processed image on main thread
                 await MainActor.run {
