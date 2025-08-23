@@ -65,7 +65,7 @@ struct AdjustmentsView: View {
     var body: some View {
         VStack(spacing: 12) {
             // Line 1: Title
-            Text(selectedAdjustment.rawValue.uppercased())
+            Text(selectedAdjustment.rawValue)
                 .font(.headline)
                 .foregroundColor(.white)
                 .padding(.top, 8)

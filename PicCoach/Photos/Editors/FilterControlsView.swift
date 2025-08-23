@@ -26,10 +26,7 @@ struct FilterControlsView: View {
             Image(uiImage: previewImage())
                 .resizable()
                 .scaledToFit()
-                .padding()
-            
-            Divider().background(Color.white)
-            
+
             // --- Selected Filter Title ---
             if let filterName = selectedFilter?.name {
                 Text(filterName)
@@ -41,6 +38,7 @@ struct FilterControlsView: View {
             // --- Horizontal filter list ---
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 16) {
+                    Color.clear.frame(width: 16, height: 60)
                     ForEach(availableFilters) { filter in
                         Button {
                             selectedFilter = filter
@@ -63,6 +61,7 @@ struct FilterControlsView: View {
                             }
                         }
                     }
+                    Color.clear.frame(width: 16, height: 60)
                 }
                 .padding(.vertical, 8)
                 .onAppear {
@@ -79,12 +78,13 @@ struct FilterControlsView: View {
                         .font(.caption)
                         .foregroundColor(.white.opacity(0.7))
                 }
-                .frame(height: 24)
+                .frame(height: 20)
             } else {
                 Spacer()
-                    .frame(height: 24)
+                    .frame(height: 20)
             }
         }
+        .ignoresSafeArea(edges: .all)
         .background(Color.black.edgesIgnoringSafeArea(.all))
     }
     
