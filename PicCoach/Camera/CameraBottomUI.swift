@@ -32,20 +32,24 @@ struct CameraBottomUI: View {
         VStack {
             Spacer()
 
-            if selectedCameraMode != .classic {
+            if outlineOverlayEnabled {
                 HStack {
                     Spacer()
                     Button(action: {
-                        camera.switchCamera()
+                        showPersonSelector = true
                     }) {
-                        Image(systemName: "arrow.triangle.2.circlepath.camera")
+                        Image("frame_person")
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 30, height: 30)
+                            .frame(width: 24, height: 24)
                             .foregroundColor(.white)
-                            .padding(15)
+                            .padding(12)
                             .background(Color.black.opacity(0.6))
-                            .clipShape(Circle())  
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                            )
+                            .cornerRadius(8) 
                     }
                     .padding(.trailing, 20)
                 }
@@ -166,38 +170,16 @@ struct CameraBottomUI: View {
                     
                     // --- Switch camera button (right side) ---
                     Button(action: {
-                        if outlineOverlayEnabled {
-                            // Navigate to PersonSelectorView
-                            showPersonSelector = true
-                        } else {
-                            camera.switchCamera()
-                        }
+                        camera.switchCamera()
                     }) {
-                        if outlineOverlayEnabled {
-                            // Show frame_person icon when outline is enabled
-                            Image("frame_person")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 24, height: 24)
-                                .foregroundColor(.white)
-                                .padding(12)
-                                .background(Color.black.opacity(0.6))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                                )
-                                .cornerRadius(8)
-                        } else {
-                            // Show original switch camera icon when outline is disabled
-                            Image(systemName: "arrow.triangle.2.circlepath.camera")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 30, height: 30)
-                                .foregroundColor(.white)
-                                .padding(15)
-                                .background(Color.black.opacity(0.6))
-                                .clipShape(Circle())
-                        }
+                        Image(systemName: "arrow.triangle.2.circlepath.camera")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 30, height: 30)
+                            .foregroundColor(.white)
+                            .padding(15)
+                            .background(Color.black.opacity(0.6))
+                            .clipShape(Circle())  
                     }
                     .padding(.trailing, 20)
                 }.padding(.bottom, 30)
