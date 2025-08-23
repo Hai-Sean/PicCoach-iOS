@@ -89,7 +89,8 @@ struct PersonSelectorView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 10)
-                
+
+                if cameraMode == .people {
                 // Person Selection Dropdown
                 VStack(spacing: 10) {
                     // Text Field Button
@@ -166,7 +167,7 @@ struct PersonSelectorView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 10)
                 .zIndex(1)
-                
+                } 
                 // Photo Grid
                 ScrollView {
                     LazyVGrid(columns: [
@@ -203,11 +204,13 @@ struct PersonSelectorView: View {
                             )
                         }
                         
-                        // Default sample pose
-                        PhotoOutlineItem(imageName: "sample_pose") {
-                            if let sampleImage = UIImage(named: "sample_pose") {
-                                outlineOverlayImage = sampleImage
-                                presentationMode.wrappedValue.dismiss()
+                        // Default sample pose - only show for people mode
+                        if cameraMode == .people {
+                            PhotoOutlineItem(imageName: "sample_pose") {
+                                if let sampleImage = UIImage(named: "sample_pose") {
+                                    outlineOverlayImage = sampleImage
+                                    presentationMode.wrappedValue.dismiss()
+                                }
                             }
                         }
                         
@@ -310,6 +313,15 @@ struct PersonSelectorView: View {
                     endpoint: segmentEndpoint,
                     image: image
                 )
+
+                print("✅ Segmentation successful. Got segmented image:")
+                if let segmentedImage = segmentedImage {
+                    print("- Image size: \(segmentedImage.size)")
+                    print("- Scale: \(segmentedImage.scale)")
+                    print("- Orientation: \(segmentedImage.imageOrientation.rawValue)")
+                } else {
+                    print("- Warning: segmentedImage is nil despite successful API call")
+                }
                 
                 // Update the processed image on main thread
                 await MainActor.run {
