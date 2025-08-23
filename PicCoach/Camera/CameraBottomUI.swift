@@ -23,6 +23,7 @@ struct CameraBottomUI: View {
     @Binding var outlineOverlayScale: CGFloat
     @Binding var outlineOverlayOffset: CGSize
     @Binding var outlineOverlayRotation: Double
+    @Binding var showPersonSelector: Bool
     
     let lastLibraryPhoto: UIImage?
     let screenWidth: CGFloat
@@ -146,8 +147,8 @@ struct CameraBottomUI: View {
                     // --- Switch camera button (right side) ---
                     Button(action: {
                         if outlineOverlayEnabled {
-                            // Toggle outline visibility or show image picker
-                            // Add your outline toggle logic here
+                            // Navigate to PersonSelectorView
+                            showPersonSelector = true
                         } else {
                             camera.switchCamera()
                         }

@@ -26,6 +26,8 @@ struct CameraView: View {
     // Camera modes state
     @State private var selectedCameraMode: CameraMode = .classic
     
+    // Navigation state
+    @State private var showPersonSelector = false
 
     
     var body: some View {
@@ -143,6 +145,7 @@ struct CameraView: View {
                     outlineOverlayScale: $outlineOverlayScale,
                     outlineOverlayOffset: $outlineOverlayOffset,
                     outlineOverlayRotation: $outlineOverlayRotation,
+                    showPersonSelector: $showPersonSelector,
                     lastLibraryPhoto: lastLibraryPhoto,
                     screenWidth: geo.size.width
                 )
@@ -169,6 +172,10 @@ struct CameraView: View {
                 PhotoPreviewView(image: image)
             }
         }
+        .fullScreenCover(isPresented: $showPersonSelector) {
+            PersonSelectorView()
+        }
+     
     }
     
     func fetchLastLibraryPhoto() {
