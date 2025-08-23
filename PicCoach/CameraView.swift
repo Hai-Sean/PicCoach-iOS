@@ -23,18 +23,18 @@ struct CameraView: View {
     @State private var outlineOverlayOffset = CGSize.zero
     @State private var outlineOverlayRotation: Double = 0.0
     
+    // Camera modes state
+    @State private var selectedCameraMode: CameraMode = .classic
+    
+    // Navigation state
+    @State private var showPersonSelector = false
+
+    
     var body: some View {
         GeometryReader { geo in
             ZStack {
                 VStack(spacing: 0) {
                     Spacer()
-                        .opacity(0.8)
-                        .frame(height: camera.topBarHeight(for: camera.aspectRatio, in: geo))
-                        .overlay(
-                            // TODO: - Add top quick action here
-                            Text("Top UI") // placeholder
-                                .foregroundColor(.white)
-                        )
                     
                     // --- Camera preview area ---
                     ZStack {
@@ -122,24 +122,6 @@ struct CameraView: View {
                                             .clipShape(Circle())
                                     }
                                 }
-                                
-                                // Outline Overlay quick toggle
-                                Button(action: {
-                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                        outlineOverlayEnabled.toggle()
-                                    }
-                                }) {
-                                    Image(systemName: outlineOverlayEnabled ? "square.on.square.fill" : "square.on.square")
-                                        .foregroundColor(outlineOverlayEnabled ? .blue : .white)
-                                        .font(.system(size: 18))
-                                        .frame(width: 40, height: 40)
-                                        .background(outlineOverlayEnabled ? Color.blue.opacity(0.3) : Color.black.opacity(0.6))
-                                        .clipShape(Circle())
-                                        .overlay(
-                                            Circle()
-                                                .stroke(outlineOverlayEnabled ? Color.blue : Color.clear, lineWidth: 2)
-                                        )
-                                }
                             }
                             
                             Spacer()
@@ -153,89 +135,20 @@ struct CameraView: View {
                 .edgesIgnoringSafeArea(.all)
 
                 // --- Bottom UI area ---
-                VStack {
-                    Spacer()
-
-                    VStack {
-                        // Outline Overlay Controls
-                        if outlineOverlayEnabled {
-                            OutlineOverlayControls(
-                                isEnabled: $outlineOverlayEnabled,
-                                opacity: $outlineOverlayOpacity,
-                                selectedImage: $outlineOverlayImage,
-                                scale: $outlineOverlayScale,
-                                offset: $outlineOverlayOffset,
-                                rotation: $outlineOverlayRotation
-                            )
-                            .transition(.move(edge: .top).combined(with: .opacity))
-                        }
-                        
-                        HStack {
-                            // Image preview thumbnail (left)
-                            if let image = camera.lastPhoto ?? lastLibraryPhoto {
-                                Button {
-                                    camera.lastPhoto = image
-                                    showPreview = true
-                                } label: {
-                                    Image(uiImage: image)
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(width: 60, height: 60)
-                                        .clipped()
-                                        .cornerRadius(8)
-                                        .shadow(radius: 3)
-                                        .padding(.leading, 20)
-                                }
-                            } else {
-                                Color.gray
-                                    .frame(width: 60, height: 60)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                                    .padding(.leading, 20)
-                            }
-                            
-                            Spacer()
-                            
-                            // Capture button (center)
-                            Button(action: {
-                                camera.takePhoto()
-                            }) {
-                                // Shutter button with circle in circle
-                                ZStack {
-                                    // Outer ring
-                                    Circle()
-                                        .stroke(Color.white, lineWidth: 5)  // ring outline
-                                        .frame(width: 60, height: 60)
-                                    
-                                    // Inner circle
-                                    Circle()
-                                        .fill(Color.white)
-                                        .frame(width: 50, height: 50)
-                                }
-                            }
-                            
-                            Spacer()
-                            
-                            // --- Switch camera button (right side) ---
-                            Button(action: {
-                                camera.switchCamera()
-                            }) {
-                                Image(systemName: "arrow.triangle.2.circlepath.camera")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 30, height: 30)
-                                    .foregroundColor(.white)
-                                    .padding(15)
-                                    .background(Color.black.opacity(0.6))
-                                    .clipShape(Circle())
-                            }
-                            .padding(.trailing, 20)
-                        }.padding(.bottom, 30)
-                        
-                    }
-                    .padding(.horizontal, 0)
-                    .padding(.vertical, 20)
-                    .background(Color(red: 0.08, green: 0.08, blue: 0.08).opacity(0.8))
-                }.ignoresSafeArea(.all)
+                CameraBottomUI(
+                    camera: camera,
+                    selectedCameraMode: $selectedCameraMode,
+                    showPreview: $showPreview,
+                    outlineOverlayEnabled: $outlineOverlayEnabled,
+                    outlineOverlayOpacity: $outlineOverlayOpacity,
+                    outlineOverlayImage: $outlineOverlayImage,
+                    outlineOverlayScale: $outlineOverlayScale,
+                    outlineOverlayOffset: $outlineOverlayOffset,
+                    outlineOverlayRotation: $outlineOverlayRotation,
+                    showPersonSelector: $showPersonSelector,
+                    lastLibraryPhoto: lastLibraryPhoto,
+                    screenWidth: geo.size.width
+                )
 
             }
         }
@@ -259,6 +172,10 @@ struct CameraView: View {
                 PhotoPreviewView(image: image)
             }
         }
+        .fullScreenCover(isPresented: $showPersonSelector) {
+            PersonSelectorView(outlineOverlayImage: $outlineOverlayImage)
+        }
+     
     }
     
     func fetchLastLibraryPhoto() {
