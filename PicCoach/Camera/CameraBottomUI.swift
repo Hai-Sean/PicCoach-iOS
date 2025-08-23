@@ -38,18 +38,33 @@ struct CameraBottomUI: View {
                     Button(action: {
                         showPersonSelector = true
                     }) {
-                        Image("frame_person")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 24, height: 24)
-                            .foregroundColor(.white)
-                            .padding(12)
-                            .background(Color.black.opacity(0.6))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                            )
-                            .cornerRadius(8) 
+                        if let overlayImage = outlineOverlayImage {
+                            Image(uiImage: overlayImage)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 40, height: 40)
+                                .clipped()
+                                .padding(12)
+                                .background(Color.black.opacity(0.6))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                                )
+                                .cornerRadius(8)
+                        } else {
+                            Image("frame_person")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 24, height: 24)
+                                .foregroundColor(.white)
+                                .padding(12)
+                                .background(Color.black.opacity(0.6))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                                )
+                                .cornerRadius(8)
+                        }
                     }
                     .padding(.trailing, 20)
                 }
